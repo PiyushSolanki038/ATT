@@ -319,6 +319,20 @@ def save_leave_to_excel(
 # GOOGLE SHEETS helpers
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _parse_creds_json(raw: str):
+    """Try to parse a JSON string that may have mangled newlines."""
+    try:
+        return _json.loads(raw)
+    except _json.JSONDecodeError:
+        pass
+    # Railway / some hosts turn literal \n in private_key into \\n
+    try:
+        return _json.loads(raw.replace("\\n", "\n"))
+    except _json.JSONDecodeError:
+        pass
+    return None
+
+
 def _get_gspread_client():
     """Authenticate and return a ``gspread.Client`` or ``None``."""
     try:
@@ -330,23 +344,33 @@ def _get_gspread_client():
             "https://www.googleapis.com/auth/drive",
         ]
 
+        creds_info = None
+
+        # 1) Prefer GOOGLE_CREDS_JSON env var
         if GOOGLE_CREDS_JSON:
-            raw = GOOGLE_CREDS_JSON
-            # Railway and some hosts turn literal \\n into real newlines;
-            # also handle double-escaped \\\\n.  Replace them back so
-            # json.loads can parse the private_key correctly.
+            creds_info = _parse_creds_json(GOOGLE_CREDS_JSON)
+
+        # 2) Fallback: GOOGLE_CREDS_FILE might contain JSON directly
+        #    (common mis-configuration on Railway)
+        if creds_info is None and GOOGLE_CREDS_FILE:
+            creds_info = _parse_creds_json(GOOGLE_CREDS_FILE)
+
+        # 3) Fallback: GOOGLE_CREDS_FILE as an actual file path
+        if creds_info is None and GOOGLE_CREDS_FILE:
             try:
-                creds_info = _json.loads(raw)
-            except _json.JSONDecodeError:
-                raw = raw.replace("\\n", "\n")
-                creds_info = _json.loads(raw)
-            creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
-        elif Path(GOOGLE_CREDS_FILE).exists():
-            creds = Credentials.from_service_account_file(GOOGLE_CREDS_FILE, scopes=scopes)
-        else:
+                if Path(GOOGLE_CREDS_FILE).exists():
+                    creds = Credentials.from_service_account_file(
+                        GOOGLE_CREDS_FILE, scopes=scopes,
+                    )
+                    return gspread.authorize(creds)
+            except OSError:
+                pass  # path too long / invalid – not a real file path
+
+        if creds_info is None:
             logger.warning("No Google credentials found – Sheets integration disabled.")
             return None
 
+        creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
         return gspread.authorize(creds)
     except Exception as exc:
         logger.error("Google Sheets auth failed: %s", exc)
