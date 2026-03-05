@@ -34,6 +34,46 @@ import excel_handler
 logger = logging.getLogger(__name__)
 
 
+async def _admin_guard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """
+    Return ``True`` if the caller is **not** an admin (i.e. access DENIED).
+
+    Also notifies Owner & HR about the suspicious attempt.
+    """
+    user = update.effective_user
+    if is_admin(user.id):
+        return False  # access granted
+
+    await update.message.reply_text("❌ Admin only command.")
+
+    # Look up employee info if linked
+    staff = load_staff()
+    emp_info = ""
+    for eid, info in staff.items():
+        if info.get("telegram_id") == user.id:
+            emp_info = f"\n👤 Employee: {info['name']} ({eid} | {info.get('dept', 'N/A')})"
+            break
+
+    cmd = update.message.text or "unknown"
+    alert = (
+        f"🚨 *Suspicious Activity Alert*\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"User: {user.full_name} (@{user.username or 'N/A'})"
+        f"{emp_info}\n"
+        f"Telegram ID: `{user.id}`\n"
+        f"Attempted: `{cmd}`\n"
+        f"⏰ {now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+
+    for admin_id in get_admin_ids():
+        try:
+            await context.bot.send_message(admin_id, alert, parse_mode="Markdown")
+        except Exception:
+            pass
+
+    return True  # access denied
+
+
 def register_admin_commands(app) -> None:
     """Register all admin command handlers on the application."""
     app.add_handler(CommandHandler("staff", staff_command))
@@ -61,6 +101,8 @@ def register_admin_commands(app) -> None:
 
 async def staff_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/staff — List all registered employees."""
+    if await _admin_guard(update, context):
+        return
     staff = load_staff()
     if not staff:
         await update.message.reply_text("📋 No employees registered. Use /addstaff to add.")
@@ -78,8 +120,7 @@ async def staff_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def addstaff_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/addstaff EMP_ID Name | Department"""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
     if not context.args or len(context.args) < 2:
         await update.message.reply_text("Usage: /addstaff EMP_ID Name | Department")
@@ -111,8 +152,7 @@ async def addstaff_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def removestaff_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/removestaff EMP_ID"""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
     if not context.args:
         await update.message.reply_text("Usage: /removestaff EMP_ID")
@@ -137,8 +177,7 @@ async def removestaff_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def report_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/report — Today's submitted / absent / leave breakdown."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
 
     att_date = get_attendance_date()
@@ -182,8 +221,7 @@ async def report_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def absent_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/absent — Quick absent list for today."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
 
     att_date = get_attendance_date()
@@ -209,8 +247,7 @@ async def absent_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def late_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/late — Late vs on-time breakdown."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
 
     att_date = get_attendance_date()
@@ -243,8 +280,7 @@ async def late_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/history EMP_ID — Last 7 days detail (sent to admin DM)."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
     if not context.args:
         await update.message.reply_text("Usage: /history EMP_ID")
@@ -295,8 +331,7 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def weeklyreport_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/weeklyreport — Grid of ✅/❌/🏖 for all employees (DM)."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
 
     staff = load_staff()
@@ -345,8 +380,7 @@ async def weeklyreport_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def monthly_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/monthly — Per-employee monthly stats with progress bar (DM)."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
 
     staff = load_staff()
@@ -402,8 +436,7 @@ async def monthly_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/export — Send Excel file + Google Sheet link to admin DM."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
 
     user_id = update.effective_user.id
@@ -431,8 +464,7 @@ async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/broadcast message — Send a message to the group."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
     if not context.args:
         await update.message.reply_text("Usage: /broadcast Your message")
@@ -458,8 +490,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def deadline_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/deadline [HH:MM] — View or set submission deadline."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
 
     if not context.args:
@@ -512,8 +543,7 @@ async def sethr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def announce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/announce message — Post an announcement to the group (DM only)."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
     if update.effective_chat.type != "private":
         await update.message.reply_text("ℹ️ Use this command in a private chat with the bot.")
@@ -539,8 +569,7 @@ async def announce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def dm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/dm EMP_ID message — Send a private message to an employee."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
     if not context.args or len(context.args) < 2:
         await update.message.reply_text("Usage: /dm EMP_ID Your message")
@@ -574,8 +603,7 @@ async def dm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/remind — Send a reminder to every employee who hasn't submitted."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
 
     att_date = get_attendance_date()
@@ -616,8 +644,7 @@ async def remind_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def warning_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/warning EMP_ID reason — Send an official warning to an employee."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("❌ Admin only command.")
+    if await _admin_guard(update, context):
         return
     if not context.args or len(context.args) < 2:
         await update.message.reply_text("Usage: /warning EMP_ID Reason")

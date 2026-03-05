@@ -344,8 +344,9 @@ async def post_init(application) -> None:
     except Exception as exc:
         logger.error("Post-init sync failed: %s", exc)
 
-    # Register slash-command menu
+    # Register slash-command menu — employees see only their commands
     try:
+        # Default menu for all users (employee commands only)
         await application.bot.set_my_commands(
             [
                 BotCommand("start", "Start the bot"),
@@ -355,11 +356,6 @@ async def post_init(application) -> None:
                 BotCommand("edit", "Request edit"),
                 BotCommand("leave", "Request leave"),
                 BotCommand("allow", "Request re-submission"),
-                BotCommand("staff", "List employees"),
-                BotCommand("report", "Today's report"),
-                BotCommand("absent", "Absent list"),
-                BotCommand("late", "Late list"),
-                BotCommand("export", "Export data"),
             ]
         )
     except Exception as exc:
