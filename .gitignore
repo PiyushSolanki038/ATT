@@ -1,0 +1,27 @@
+# Environment
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Secrets
+credentials.json
+
+# Data files (persisted via Google Sheets on Railway)
+*.xlsx
+daily_log.json
+leave_log.json
+deadline.json
+hr_chat_id.json
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# PRD
+PROJECT_PRD.md

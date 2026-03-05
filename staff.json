@@ -1,0 +1,57 @@
+{
+  "DEV01": {
+    "name": "Sunny",
+    "dept": "DEVELOPER",
+    "telegram_id": null
+  },
+  "DEV02": {
+    "name": "Piyush",
+    "dept": "DEVELOPER",
+    "telegram_id": 1320019046
+  },
+  "DEV03": {
+    "name": "Anand",
+    "dept": "DEVELOPER",
+    "telegram_id": null
+  },
+  "DEV04": {
+    "name": "Adarsh",
+    "dept": "DEVELOPER",
+    "telegram_id": null
+  },
+  "MKT01": {
+    "name": "Bipul",
+    "dept": "MARKETING",
+    "telegram_id": null
+  },
+  "MKT02": {
+    "name": "Finney",
+    "dept": "MARKETING",
+    "telegram_id": null
+  },
+  "MKT03": {
+    "name": "Shivam",
+    "dept": "MARKETING",
+    "telegram_id": null
+  },
+  "MKT04": {
+    "name": "Amar",
+    "dept": "MARKETING",
+    "telegram_id": null
+  },
+  "FIN01": {
+    "name": "Sahil",
+    "dept": "FINANCE",
+    "telegram_id": null
+  },
+  "HR01": {
+    "name": "Shruti",
+    "dept": "HR",
+    "telegram_id": null
+  },
+  "HR02": {
+    "name": "Pooja",
+    "dept": "HR",
+    "telegram_id": null
+  }
+}
