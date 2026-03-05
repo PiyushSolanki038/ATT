@@ -286,12 +286,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     # ── Persist to Google Sheets (async, fire-and-forget) ────────────────
-    asyncio.create_task(
-        excel_handler.save_to_google_sheets(
-            emp_id, emp_name, dept, att_date, day_name,
-            submit_time, work, source, username, is_resubmission,
-        )
-    )
+    async def _gs_save_wrapper():
+        try:
+            await excel_handler.save_to_google_sheets(
+                emp_id, emp_name, dept, att_date, day_name,
+                submit_time, work, source, username, is_resubmission,
+            )
+        except Exception as exc:
+            logger.error("Google Sheets save failed (background): %s", exc)
+
+    asyncio.create_task(_gs_save_wrapper())
 
     # ── Confirmation in group ────────────────────────────────────────────
     tag = "🔄 Re-submission" if is_resubmission else "✅ Recorded"

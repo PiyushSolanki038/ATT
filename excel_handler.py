@@ -331,7 +331,15 @@ def _get_gspread_client():
         ]
 
         if GOOGLE_CREDS_JSON:
-            creds_info = _json.loads(GOOGLE_CREDS_JSON)
+            raw = GOOGLE_CREDS_JSON
+            # Railway and some hosts turn literal \\n into real newlines;
+            # also handle double-escaped \\\\n.  Replace them back so
+            # json.loads can parse the private_key correctly.
+            try:
+                creds_info = _json.loads(raw)
+            except _json.JSONDecodeError:
+                raw = raw.replace("\\n", "\n")
+                creds_info = _json.loads(raw)
             creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
         elif Path(GOOGLE_CREDS_FILE).exists():
             creds = Credentials.from_service_account_file(GOOGLE_CREDS_FILE, scopes=scopes)
@@ -352,6 +360,9 @@ def _ensure_sheet_headers(worksheet, headers: list[str]) -> None:
         if existing != headers:
             for i, h in enumerate(headers, 1):
                 worksheet.update_cell(1, i, h)
+            # Clear any leftover extra columns from old format
+            for j in range(len(headers) + 1, len(existing) + 1):
+                worksheet.update_cell(1, j, "")
             logger.info("Repaired headers in sheet '%s'", worksheet.title)
     except Exception as exc:
         logger.warning("Header check failed: %s", exc)

@@ -139,9 +139,12 @@ async def edit_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         excel_handler.update_entry_in_excel(emp_id, att_date, new_text)
 
         # Update Google Sheets (async)
-        asyncio.create_task(
-            excel_handler.update_entry_in_google_sheets(emp_id, att_date, new_text)
-        )
+        async def _gs_edit():
+            try:
+                await excel_handler.update_entry_in_google_sheets(emp_id, att_date, new_text)
+            except Exception as exc:
+                logger.error("GSheets edit update failed (bg): %s", exc)
+        asyncio.create_task(_gs_edit())
 
         await query.edit_message_text(
             f"✅ *Edit Approved*\n\n"
@@ -228,11 +231,14 @@ async def leave_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # ── Save to Google Sheets (async) ────────────────────────────────
-        asyncio.create_task(
-            excel_handler.save_leave_to_google_sheets(
-                emp_id, emp_name, dept, leave_date_str, reason, approver, current_count,
-            )
-        )
+        async def _gs_leave():
+            try:
+                await excel_handler.save_leave_to_google_sheets(
+                    emp_id, emp_name, dept, leave_date_str, reason, approver, current_count,
+                )
+            except Exception as exc:
+                logger.error("GSheets leave save failed (bg): %s", exc)
+        asyncio.create_task(_gs_leave())
 
         # Deduction info (only shown in admin DM, NOT in group)
         deduction_info = ""
